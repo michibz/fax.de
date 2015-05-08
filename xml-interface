@@ -1,0 +1,515 @@
+XML-Soap Interface PC-FAX.com
+Introduction
+The described interface is based on a SOAP protocol (Simple Object Access Protocol) and
+supplies a Web Service. At this juncture, XML formatted enquiries are transferred to the FAX.de
+server with the aim of forwarding fax documents, SMS or iLetter (post letters)
+To keep the interface as simple as possible, we strongly reduced the entries. With these entries,
+services from all kinds of web or office applications can be activated very fast and efficiently.
+The CCE entries 4-10 are services that can be used to secure a convenient web application.
+1. Register (registration of user data/changes of user data)
+2. CCE_SendASP (to send fax, SMS, iLetter or email)
+3. CCE_Status (enquiry about the processing status, report)
+4. CCE_KundenName (to provide client name)
+5. CCE_KundenDaten (to provide client data)
+6. CCE_KontoStand (to provide balance of accounts)
+7. CCE_Journal (to provide accounting journal)
+8. CCE_MyAccountASP (to provide account master data)
+9. CCE_SendWelcomeMail (to transfer personal data via mail)
+10. CCE_SetPasswordASP (to enter new password)
+Configuration of the single types of entries and their response will be demonstrated below.
+You will find a detailed documentation of an XML entry (configuration of a WSDL structure)
+under http://ccs.fax.de/xmlws3.exe
+XML-Soap Interface PC-FAX.com
+Int CCE_SendASP( ByVal Account As String, _
+ByVal Password As String, _
+ByVal JobSwitch As Long, _
+ByVal DestinationNumber As String,_
+ByVal DestinationFile As String, _
+ByVal SendText As String, _
+ByVal SendFile1 As String, _
+ByVal SendFile2 As String, _:
+ByVal SendFile3 As String, _
+ByVal SendDate As String, _
+ByVal SendTime As String, _
+ByVal Switch As String, _
+ByRef JobId as Long, _
+ByRef NumOfDest As Long,
+ByRef NumOfPages as Long, _
+Optional ByRef CheckDocFile As Variant
+This function initiates the transmission of a document. First, you can check and verify the
+transfer (from PDF to Fax-IFF etc.) with the test flag.
+Account Client number of the sender
+Password Password of the sender
+JobSwitch 0=Fax
+1=SMS
+2=Mail
+3=iLetter
+destinationNumber destination number (parted by comma) if single delivery,
+If bulk mailing empty
+DestinationFile
+CSV file for bulk mailing, destination number will be
+ignored, see index destination file
+SendText Use given plain text for a short fax/SMS/letter – inserted in
+the standard FAX.de form. SendText can also be send
+empty.
+SendFile1….
+SendFile3
+In addition to the sent PDF-file (multipage)-1 to 3
+Only possible with Jobart=0 or 3
+SendDate DD-MM-YYYY format, if empty transfer immediately
+SendTIme SS:MM format, only valid if SendDate is fixed
+Switch Different modes of dispatch, see index
+JobId serial number for identification while scanning status of
+transfer (CCE_Status), 32 bit integer
+A job number will be allocated and returned when bulk
+mailing
+NumOfDest Returns the effective number of destinations, invalid
+destinations are picked out.
+CheckDocFile Switch=”Test”, JobArt=0 or 3 (iLetter), returns the GIF
+document for visual check.
+XML-Soap Interface PC-FAX.com
+Switch
+With the parameter Switch, you can initiate different special options:
+STATIONID=xxx,xxx
+Fax-StationsID as advice for the destination and in the fax headline
+ISDNABS=<Nr> ISDN-identification of the sender
+FAXRETRY= Number of retries if busy
+FAXHEADER= Free definition of the fax header (upper 20 pixel)
+RETRY= Number of retries of the entire delivery
+FLASHSMS delivery SMS as Flash
+SMSFrom=<Nr> delivery SMS with this sender identification
+TEST No delivery, only conversion for visual check
+You can send several switches. Every switch is parted by “;”.
+The function returns following reports:
+0 Order accepted, will be completed
+-1 Password invalid
+-2 Client unknown
+-3 Document missing
+-4 Server error
+- 5 Destination number generally disconnected
+-6 Document format not supported
+-7 Dokument nicht konvertierbar (Document not convertible)
+-8 Kein Versand, da TEST Aufruf (Schalter=TEST) (No transfer because TEST entry
+(switch=TEST))
+1 Not authorized
+2 Client number field empty
+3 Client unknown, same as -2
+6 Credit not yet available (first debit + 14 days)
+7 No sufficient credit (only iLetter, Jobart=3)
+XML-Soap Interface PC-FAX.com
+Configuration of the destination file (CSV format),
+Comma for field separator, CrLf for line separator:
+destination Fax number, mobile phone number, e-mail address, accommodation
+address (1..30)
+Client Id For identification in the transfer report
+Personalization-1 Fax: FaxHeader upper left (only WITHOUT station ID possible)
+Letter: Title
+E-mail: variable field $1$
+Personalization-2 Fax: FaxHeader upper right (only WITHOUT station ID possible)
+Letter: name -1
+Email : variable field $2$
+Personalization-3 Fax: FaxHeader 2nd line left (only WITHOUT station ID possible)
+Letter : name-2
+Email : variable field $3$
+Personalization-4 Fax : FaxHeader 2nd line right (only WITHOUT station ID possible)
+Letter : Street/Number
+Email . variable field $4$
+Personalization-5 Letter : Country / Postal code / Location
+Email : variable field $5$
+Personalization-6 Letter : application /serial number
+Email : variable field $6$
+Personalization-7-10 Email : variable field $7$ …..$10$
+Zeilenende
+End of line
+CrLf or only Lf (Unix/Linux)
+XML-Soap Interface PC-FAX.com
+Int CCE_Status (ByVal Account AS String,_
+ByVal Password As String,_
+ByVal JobId As Long,_
+ByVal Protokoll As Variant)
+With this entry a single delivery will be provided with information. This is only possible if a
+JobID was attached or recorded as identification with the delivery (CCE_SendASP).
+The data set entry, which is related to the JobId, will be returned. In case of bulk mailing, a
+number of data set entries related to the order number (in JobID transferred) may emerge.
+The data set entries are passed in form of a list (items are separated by comma), where the
+first line implies the configuration of the data set entry in terms of Token.
+Example :
+Start List
+“DESTINATION”,”JOB”,”STATUS”,”NUMPAGES””,”STARDATE”,STARTTIME“,“CUSTID“,
+“04038045211“,FAX“,“OK“: +49 40 380 45 211“,“15.02“,“14:11,“150788”
+Configuration report
+TOKEN FORMAT Content Note
+“DESTINATION”
+X(16) Fax number / mobile phone
+number / e-mail consignee
+“JOB”, X(8) JobArt text FAX, SMS, e-mail,
+letter
+“STATUS”, X(15) Transfer status text See fax transfer
+report
+“NUMPAGES”, 99 Number of pages / messages
+“STARTDATE”, 99.99 Start date (dd.mm)
+“STARTTIME” 99.99 Start time (hh:mm)
+“SENDSEC” 9999 Transmission time in seconds only Fax (JobArt=0)
+“CUSTID”, X(20) Client ID Client number for
+allocation
+Error messages CCE_Status
+0 Data set entry found, see variable
+1 Account not found
+2 Password doesn’t correspond to the account
+3 Test period of the account expired
+4 Account blocked
+5 No data set entry found with this JobId
+6 Job is actually in process
+XML-Soap Interface PC-FAX.com
+Int CCE_CustomName (ByVal Account As String,_
+ByVal Password As String,_
+ByRef CustomName As Variant)
+This function specifies the client name for display on the website of a predetermined client
+Return report
+0 O.k., client name is entered in field CustomName
+1 Account not found
+2 Password doesn’t correspond to the account
+3 Test period of the account expired
+4 Account blocked
+Int CCE_CustomData (ByVal Account As String,_
+ByVal Password As String,_
+ByVal CustomData As Variant)
+This function specifies the client data for display/changes on the website of a predetermined
+client. The data is returned analogically to the function Register ( ).
+Return report
+0 O.k., in field KdDaten client data are entered as String-Array, content see function
+Register)
+1 Account not found
+2 Password doesn’t correspond to the account
+3 Test period of the account expired
+4 Account blocked
+XML-Soap Interface PC-FAX.com
+Int CCE_CreditBalance (ByVal Account As String,_
+ByVal Password As String,_
+ByRef CBData As Variant)
+This function returns the credit for display on the website of a predetermined client.
+Report
+0 O.k. credit balance is shown in the field CBData
+1 Account not found
+2 Password doesn’t correspond to the account
+3 Test period expired
+4 Account blocked
+Int CCE_Journal (ByVal Account As String,_
+ByVal Password as String,_
+ByVal NumbOfLines As Long,_
+ByVal OffSet As Long,_
+ByRef JournalTab As Variant
+This function specifies a report (journal) of the last deliveries. NumbOfLines indicates how
+many entries should be returned (maximum 100).
+OffSet specifies the entry point at which the report should start. It is therefore possible to skim
+through the pages in the report.
+Start List
+“DESTINATION”,”JOB”,”STATUS”,”NUMPAGES”,”STARTDATE”,”STARTTIME”,“SENDSEC“,”CUSTID”
+”04038045211”,”FAX”,”OK: +49 40 380 45 211”,”2”,”15.02.2004”,”14:11”,“58“,”150788”
+Configuration report
+TOKEN FORMAT Content Notes
+„DESTINATION“, X(16) Fax number / mobil phone
+number / e-mail consignee
+„JOB“, X(8) JobArt text Fax, SMS, e-mail,
+letter
+„STATUS“, X(15) Send status text See fax send report
+„NUMPAGES“, 99 Number of pages /
+messages
+„STARTDATE“, 99.99.9999 Start date (dd,mm.yyyy)
+“STARTTIME“, 99.99 Start time (hh:mm)
+„SENDSEC“, 9999 Delivery time in seconds Only fax (JobArt=0)
+„KUNDENID“, X(20) Client ID
+Client number for
+allocation
+The configuration of a report line corresponds to the configuration of the CCE_Status.
+In CCE_MyACcount ASP( ByVal Account As String,_
+XML-Soap Interface PC-FAX.com
+ByVal Password As String,_
+ByRef MyAccountData AS Variant)
+This function reflects an exact itemization of the account / invoicing data.
+In turn, the account data is shown as a “kommaseparierte” list, where the first entry contains
+the TOKEN list.
+Example
+“TEXT”,”VOLUME”,”UNIT”,”RABAT”,”SUM”
+„Our claim of 18.2.04“,““,““,““,“10,6“
+„Up from 02.02.:”,””,””,””,””
+“SPAR-BRD-N 1 Fax page”,”2”,”0,3200”,”5%”,”0,6080”
+TOKEN FORMAT Content Notes
+“TEXT” X(80) Voucher text
+“VOLUME” 9999999 Volume
+“UNIT” 9999999,9999 Unit price 4 decimal place
+“RABAT” X(8) Rabat
+“SUM” 9999999,9999 Lump sum price 4 decimal place
+Int CCE_SendWelcomeMail (ByVal Account As String)
+This function initiates the FAX.de system to send the registration e-mail (with the password) to
+the customer. :
+Report
+0 O.k., welcome mail is sent
+1 Account not found
+2 Password doesn’t correspond to the account
+3 Test period expired
+4 Account blocked
+In CCE_SetPasswordASP ( ByVal Account As String,_
+ByVal OldPassword As String,_
+ByVal NewPassword As String)
+This function allows a change of the password of a particular/ predetermined account.
+Report
+0 O.k., password changed
+1 Account not found
+2 Password doesn’t correspond to the account
+3 Test period expired
+4 Account blocked
+XML-Soap Interface PC-FAX.com
+Int CCE_FaxReceive ( ByVal Account As String,_
+ByVal Password As Sting,_
+ByRef ReceiveFaxFile As String)
+This function collects faxes received by the FAX.de server for a predetermined account. The
+received fax will be provided as a multi page TIFF file.
+Important:
+After the successful delivery of the fax file, the document has to be deleted by the function
+CCE_DeleteFaxIn Box. Otherwise the same fax will be sent again and again.
+Report
+0 ReceiveFax found, file will be attached as ReceiveFaxFile
+1 Account not found
+2 Password doesn’t correspond to the account
+3 Test period expired
+4 Account blocked
+5 No Fax in the Fax inbox
+Int CCE_DeleteFaxInBox ( ByVal Account As String,_
+ByVal Password As String,_
+ByRef ReceiveFaxFile As String)
+This function deletes a collected fax from the inbox memory at FAX.de.
+Report
+0 Fax was deleted from the Inbox
+1 Account not found
+2 Password doesn’t correspond to the account
+3 Test period expired
+4 Account blocked
+5 Fax file not found
+Int CCE_CheckPromoCode ( ByVal Account As String,_
+ByVal PromoCode As String)
+This function verifies the validity of the predetermined promotion code.
+Report
+0 Promotion credit available for the full amount
+1 Account not found
+2 PromoCode not valid
+3 Test period expired
+4 Account blocked
+5 Promotion credit already honored
+XML-Soap Interface PC-FAX.com
+Register
+Register ( AccountNo As Variant,_
+Password As Variant,_
+RegData As Variant) As Long
+The user data is sent by a string-array. With a new registration account, number and
+password are left empty. After successful registration, they will be filled in by the server
+with the assigned client number and a password. In case of a change of the data
+account, number and password have to be forwarded too.
+The registration data are passed with Token, for example ”ANREDE=Herr”:
+TOKEN
+Field configuration
+Format
+Advice
+ACCOUNTNO= Client number 999999 send empty with a new
+registration
+With @<number> send with card
+registration
+TITEL= Title X(15) For ex. “Mr.” or “Company
+NAME1= Name of the client X(30) Name, forename
+NAME2= Supplement X(30) Title
+STREET= Street X(30)
+LOCATION= Country/postal
+code/location
+X(40)
+PHONE= Telephone-1 X(20)
+CONTACT1= Contact person-1 X(30)
+MOBIL= Telephone-2 X(20)
+CONTACT2= Contact person-2 X(30)
+BANK-KK= Holder of the
+bank/open account
+X(30) Bank name if PAYSWITCH=”J”, holder
+of the open account if
+PAYSWITCH=K1..K4
+BLZGUELTIG A.B.A. number or
+valid until
+X(8) A.B.A. number, if PAYSWITCH=”J”,
+Valid until, if PAYSWITCH=K1..K2
+KTOKARTNR= Account number or
+Card number
+X(20) Account number, if PAYSWITCH=”J”,
+Card number, if PAYSWITCH=K1..K2
+PAYSWITCH= Debit note/credit
+card
+X J = bank debit memo
+K1 = Eurocard / Mastercard
+K2 = Visa
+K3 = Diners Club
+K4 = American Express
+CARDPIN PIN of 3 or 4 figures X(4) The last 3 or 4 figures are counted
+backwards
+FAX= Fax number X(20)
+XML-Soap Interface PC-FAX.com
+EMAIL Email X (50)
+MWSTID= VAT-IDnumber X(15) DE…
+SWITCHES= Switcher X(20) Enter “-EETF” to activate fax
+transfer to e-mail account
+SMSFTE= SMS/Fax input X(20) Mobile phone number for
+notice of fax reception
+EMAILFTE= Input email/fax X(40) E-mail for notice of fax
+reception
+TARIF= Easy-tariff X P=Privat
+L=Light
+B=Business(5% discount)
+S=Super business (10 %
+discount)
+AGENCYID= Agency ID 9(10) Number of the FAX.de agency
+CARDCODE Card code X(6) Card code (respectively
+password)
+The following status messages are possible :
+0 Customer file saved
+1 Error customer data empty or rejected
+4 Change of customer data customer not found
+5 Other error
+6 Data alert : payment mode invalid
+7 Data alert : tariff invalid / unknown
+8 Data alert . A.B.A. number invalid / unknown
+9 Data alert : Account number invalid
+10 Data alert : email invalid / empty
+11 Data alert : address empty / invalid
+12 MAC-address blocked
+Only if status = 0, can the data be saved by the server. Then the parameters
+AccountNo = new used client number
+Password = used password / generated password
+are restored. The password can also be provided locally and has to be supplied as parameter
+with the entry for registration.
+XML-Soap Interface PC-FAX.com
+XML-Example for register
+SENT:
+<?xml version="1.0"?>
+<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/">
+<SOAP-ENV:Body SOAP-ENV:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+<NS1:Register xmlns:NS1="urn:XMLWSIntf-IXMLWS">
+<Account xsi:type="xsd:string">
+</Account>
+<Password xsi:type="xsd:string">
+</Password>
+<RegData xsi:type="SOAP-ENC:Array" SOAP-ENC:arrayType="xsd:string[3]">
+<item>
+ANREDE=Herr
+</item>
+<item>
+NAME1=Manfred Muster
+</item>
+!!
+!! further tokens with customer infos see interface description
+!!
+</RegData>
+</NS1:Register>
+</SOAP-ENV:Body>
+</SOAP-ENV:Envelope>
+XML-Soap Interface PC-FAX.com
+Received:
+<?xml version="1.0"?>
+<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/">
+<SOAP-ENV:Body SOAP-ENC:encodingStyle="http://schemas.xmlsoap.org/soap/envelope/">
+<NS1:RegisterResponse xmlns:NS1="urn:XMLWSIntf-IXMLWS">
+<return xsi:type="xsd:int">
+0
+</return>
+<Account xsi:type="xsd:string">
+158123
+</Account>
+<Password xsi:type="xsd:string">
+secret
+</Password>
+</NS1:RegisterResponse>
+</SOAP-ENV:Body>
+</SOAP-ENV:Envelope>
+XML-Soap Interface PC-FAX.com
+XML-example CCE_SendASP
+SENT:
+--MIME_boundaryB0R9532143182121
+Content-Type: text/xml
+SOAPAction: "urn:XMLWSIntf-IXMLWS#Send"
+Content-ID:
+<http://www.borland.com/rootpart.xml>
+Content-Location: http://www.borland.com/rootpart.xml
+Content-Length: 1075
+<?xml version="1.0"?>
+<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/">
+<SOAP-ENV:Body SOAP-ENV:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+<NS1:Send xmlns:NS1="urn:XMLWSIntf-IXMLWS">
+<Account xsi:type="xsd:string">
+158123
+</Account>
+<Password xsi:type="xsd:string">
+secret
+</Password>
+<JobArt xsi:type="xsd:int">
+1
+</JobArt>
+<EmpfaengerNr xsi:type="xsd:string">
+04038017851515
+XML-Soap Interface PC-FAX.com
+</EmpfaengerNr>
+<EmpfaengerListe href="cid:AC4AB75F-291E-47FA-B6BF-BC3EB32B1FD5"/>
+<SendText xsi:type="xsd:string">
+Hallo
+</SendText>
+<SendFile1 href="cid:4695C5C3-6D8F-4790-B005-EF26FC652AC5"/>
+<SendFile2 href="cid:89D1AE2F-AB6D-4A7D-906F-39F4BD1C494D"/>
+<SendFile3 xsi:nil="true"/>
+<SendeDatumZeit xsi:type="xsd:dateTime">
+2004-02-25T12:29:27.812+01:00
+</SendeDatumZeit>
+<Schalter xsi:type="xsd:string">
+</Schalter>
+<CheckDocFile xsi:type="xsd:boolean">
+false
+</CheckDocFile>
+</NS1:Send>
+</SOAP-ENV:Body>
+</SOAP-ENV:Envelope>
+--MIME_boundaryB0R9532143182121
+Content-ID:
+<AC4AB75F-291E-47FA-B6BF-BC3EB32B1FD5>
+Content-Length: 41
+Content-Type: application/binary
+XML-Soap Interface PC-FAX.com
+Content-transfer-encoding: binary
+XML-Soap Interface PC-FAX.com
+NOTE: Attachment data here
+--MIME_boundaryB0R9532143182121
+Content-ID:
+<4695C5C3-6D8F-4790-B005-EF26FC652AC5>
+Content-Length: 9959
+Content-Type: application/pdf
+Content-transfer-encoding: binary
+NOTE: Attachment data here
+--MIME_boundaryB0R9532143182121
+Content-ID:
+<89D1AE2F-AB6D-4A7D-906F-39F4BD1C494D>
+Content-Length: 44209
+Content-Type: image/tif
+Content-transfer-encoding: binary
+NOTE: Attachment data here
+--MIME_boundaryB0R9532143182121--
+RECEIVED:
+XML-Soap Interface PC-FAX.com
+<?xml version="1.0"?>
+<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/">
+<SOAP-ENV:Body SOAP-ENC:encodingStyle="http://schemas.xmlsoap.org/soap/envelope/">
+<NS1:SendResponse xmlns:NS1="urn:XMLWSIntf-IXMLWS">
+<return xsi:type="xsd:int">
+0
+</return>
+<JobId xsi:type="xsd:int">
+900123
+</JobId>
+</NS1:SendResponse>
+</SOAP-ENV:Body>
+</SOAP-ENV:Envelope>
